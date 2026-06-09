@@ -165,6 +165,9 @@ input, select, textarea { font: inherit; }
    ============================================================ */
 #app { display: none; min-height: 100dvh; flex-direction: column; }
 
+#app { flex-direction: column; }
+#auth-screen { min-height: 100dvh; align-items: center; justify-content: center; padding: var(--space-4); }
+
 /* Bottom Nav */
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
@@ -540,7 +543,7 @@ input, select, textarea { font: inherit; }
 </div>
 
 <!-- Auth Screen -->
-<div id="auth-screen" style="display:none;flex:1;">
+<div id="auth-screen" style="display:none;">
   <div class="auth-card">
     <div class="auth-header">
       <div class="auth-logo">
@@ -602,7 +605,7 @@ input, select, textarea { font: inherit; }
 </div>
 
 <!-- Main App -->
-<div id="app" style="display:none;flex-direction:column;">
+<div id="app" style="display:none;">
   <!-- Top Bar -->
   <div class="top-bar">
     <div class="top-bar-title">
@@ -1322,11 +1325,11 @@ function initFirebase() {
     // Enable offline persistence for PWA feel
     db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
     auth.onAuthStateChanged(user => {
+      hideLoading();
       if (user) {
         currentUser = user;
         showApp(user);
       } else {
-        hideLoading();
         showAuth();
       }
     });
@@ -1336,7 +1339,7 @@ function initFirebase() {
     isDemoMode = true;
     loadDemoData();
     hideLoading();
-    showApp({ displayName: 'المستخدم', email: 'demo@albait-alsaeid.com' });
+    showApp({ displayName: 'مستخدم', email: 'demo@albait-alsaeid.com' });
   }
 }
 
@@ -1345,16 +1348,27 @@ function hideLoading() {
   ls.style.opacity = '0';
   ls.style.transform = 'scale(1.05)';
   ls.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-  setTimeout(() => ls.style.display = 'none', 400);
+  setTimeout(() => { ls.style.display = 'none'; }, 400);
+}
+
+function showScreen(screen) {
+  // screen: 'loading' | 'auth' | 'app'
+  const loading = document.getElementById('loading-screen');
+  const auth    = document.getElementById('auth-screen');
+  const app     = document.getElementById('app');
+
+  loading.style.display = screen === 'loading' ? 'flex'   : 'none';
+  auth.style.display    = screen === 'auth'    ? 'flex'   : 'none';
+  app.style.display     = screen === 'app'     ? 'flex'   : 'none';
 }
 
 function showAuth() {
-  document.getElementById('auth-screen').style.display = 'flex';
+  showScreen('auth');
 }
 
 function showApp(user) {
   currentUser = user;
-  document.getElementById('app').style.display = 'flex';
+  showScreen('app');
   const name = user.displayName || user.email?.split('@')[0] || 'أهلاً';
   document.getElementById('greeting-text').textContent = `أهلاً، ${name} 👋`;
 
@@ -1717,8 +1731,6 @@ function switchAuthTab(tab) {
 function demoLogin() {
   isDemoMode = true;
   loadDemoData();
-  hideLoading();
-  document.getElementById('auth-screen').style.display = 'none';
   showApp({ displayName: 'المستخدم التجريبي', email: 'demo@albait' });
 }
 
@@ -1747,13 +1759,21 @@ async function handleRegister() {
   }
 }
 
-function handleLogout() {
-  if (confirm('هل تريد تسجيل الخروج؟')) {
-    transactions = [];
-    if (auth && !isDemoMode) auth.signOut();
-    document.getElementById('app').style.display = 'none';
+async function handleLogout() {
+  if (!confirm('هل تريد تسجيل الخروج؟')) return;
+  transactions = [];
+  if (isDemoMode) {
     isDemoMode = false;
-    showAuth();
+    showScreen('auth');
+    return;
+  }
+  try {
+    isDemoMode = false;
+    await auth.signOut();
+    // onAuthStateChanged will fire with null → showAuth() called automatically
+  } catch(e) {
+    console.error('Logout error:', e);
+    showScreen('auth');
   }
 }
 
