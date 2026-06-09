@@ -5,9 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>البيت السعيد للمصاريف</title>
 <link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="albait-icon-180.png">
+<link rel="apple-touch-icon" sizes="192x192" href="albait-icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="albait-icon-512.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="البيت السعيد">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="البيت السعيد">
 <meta name="theme-color" content="#0a7c6b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -517,6 +522,114 @@ input, select, textarea { font: inherit; }
   .settings-actions-grid { grid-template-columns: 1fr; }
 }
 
+
+/* ============================================================
+   PWA INSTALL PROMPT
+   ============================================================ */
+.pwa-prompt-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: var(--space-4);
+  animation: fade-in 0.3s ease;
+}
+.pwa-prompt-card {
+  background: var(--color-surface-2);
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-lg) var(--radius-lg);
+  padding: var(--space-6);
+  width: 100%; max-width: 440px;
+  box-shadow: var(--shadow-lg);
+  animation: slide-up 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+.pwa-app-row {
+  display: flex; align-items: center; gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.pwa-app-icon {
+  width: 72px; height: 72px; border-radius: 18px;
+  overflow: hidden; flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(10,124,107,0.3);
+}
+.pwa-app-icon img { width: 100%; height: 100%; object-fit: cover; }
+.pwa-app-name { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 800; color: var(--color-text); }
+.pwa-app-desc { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 4px; line-height: 1.6; }
+
+.pwa-steps { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5); }
+.pwa-step { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); background: var(--color-surface-offset); border-radius: var(--radius-lg); }
+.pwa-step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--color-primary); color: white; font-size: var(--text-xs); font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.pwa-step-text { font-size: var(--text-sm); color: var(--color-text); font-weight: 500; line-height: 1.5; }
+.pwa-step-icon { font-size: 1.2rem; flex-shrink: 0; }
+
+.pwa-btn-row { display: flex; gap: var(--space-3); }
+.pwa-btn-install {
+  flex: 1; padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-primary), #0d9b87);
+  color: white; font-size: var(--text-sm); font-weight: 700;
+  box-shadow: 0 4px 12px rgba(10,124,107,0.3);
+}
+.pwa-btn-install:hover { transform: translateY(-1px); }
+.pwa-btn-later {
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg);
+  background: var(--color-surface-offset); color: var(--color-text-muted);
+  font-size: var(--text-sm); font-weight: 600; border: 1.5px solid var(--color-border);
+}
+.pwa-os-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--color-primary-light); color: var(--color-primary);
+  padding: 3px 10px; border-radius: var(--radius-full);
+  font-size: var(--text-xs); font-weight: 700; margin-bottom: var(--space-4);
+}
+
+/* iOS specific steps */
+.pwa-ios-arrow {
+  font-size: 1.5rem; text-align: center; color: var(--color-primary);
+  animation: bounce-down 1.5s ease-in-out infinite;
+  margin-bottom: var(--space-2);
+}
+@keyframes bounce-down {
+  0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)}
+}
+
+
+/* ============================================================
+   SIGNATURE
+   ============================================================ */
+.app-signature {
+  text-align: center;
+  padding: var(--space-3) var(--space-4) var(--space-5);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  letter-spacing: 0.03em;
+  user-select: none;
+  opacity: 0.75;
+}
+.app-signature span {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-full);
+  padding: 4px 14px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition: opacity var(--transition);
+}
+.app-signature span:hover { opacity: 1; }
+.app-signature .sig-heart {
+  color: #e74c3c;
+  animation: heartbeat 1.6s ease-in-out infinite;
+  display: inline-block;
+  font-size: 13px;
+}
+@keyframes heartbeat {
+  0%,100% { transform: scale(1); }
+  14%      { transform: scale(1.25); }
+  28%      { transform: scale(1); }
+  42%      { transform: scale(1.18); }
+  56%      { transform: scale(1); }
+}
+
 </style>
 </head>
 <body>
@@ -825,6 +938,18 @@ input, select, textarea { font: inherit; }
     </div>
 
     <div id="stmt-list"></div>
+<div class="app-signature">
+  <span>مصمم بحب <span class="sig-heart">❤️</span> Shady Nassef</span>
+</div>
+<div class="app-signature">
+  <span>مصمم بحب <span class="sig-heart">❤️</span> Shady Nassef</span>
+</div>
+<div class="app-signature">
+  <span>مصمم بحب <span class="sig-heart">❤️</span> Shady Nassef</span>
+</div>
+<div class="app-signature">
+  <span>مصمم بحب <span class="sig-heart">❤️</span> Shady Nassef</span>
+</div>
   </div>
 
 
@@ -1020,6 +1145,7 @@ input, select, textarea { font: inherit; }
           <button class="btn-secondary" onclick="importDataClick()">⬆️ استيراد JSON</button>
         </div>
         <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(this)">
+        <button class="btn-secondary" style="margin-bottom:var(--space-3);width:100%;" onclick="showInstallFromSettings()">📲 تثبيت التطبيق على الموبايل</button>
         <button class="btn-secondary" style="margin-bottom:var(--space-3);width:100%;" onclick="resetSettings()">🔄 إعادة ضبط الإعدادات</button>
       </div>
 
@@ -1042,6 +1168,9 @@ input, select, textarea { font: inherit; }
       </div>
 
     </div>
+<div class="app-signature">
+  <span>مصمم بحب <span class="sig-heart">❤️</span> Shady Nassef</span>
+</div>
   </div>
 
   <!-- Bottom Nav -->
@@ -1866,6 +1995,93 @@ function showNotifPanel() {
 </script>
 
 <script>
+
+// ============================================================
+// PWA INSTALL ENGINE
+// ============================================================
+let deferredInstallPrompt = null;
+const PWA_DISMISSED_KEY = 'albait_pwa_dismissed';
+
+// Catch native install prompt (Android/Chrome)
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show after slight delay once app loaded
+  setTimeout(showPWAPrompt, 2500);
+});
+
+function showPWAPrompt() {
+  // Don't show if already installed or dismissed recently
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  if (window.navigator.standalone === true) return; // iOS installed
+  const dismissed = localStorage.getItem(PWA_DISMISSED_KEY);
+  if (dismissed && (Date.now() - parseInt(dismissed)) < 7 * 24 * 60 * 60 * 1000) return;
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const isAndroid = /android/i.test(navigator.userAgent);
+
+  const overlay = document.getElementById('pwa-overlay');
+  const androidSteps = document.getElementById('pwa-android-steps');
+  const iosSteps = document.getElementById('pwa-ios-steps');
+  const badge = document.getElementById('pwa-os-badge');
+  const installBtn = document.getElementById('pwa-install-btn');
+
+  if (isIOS && isSafari) {
+    // iOS Safari — show manual steps
+    androidSteps.style.display = 'none';
+    iosSteps.style.display = 'block';
+    badge.textContent = '🍎 iPhone / iPad';
+  } else if (deferredInstallPrompt) {
+    // Has native prompt
+    androidSteps.style.display = 'block';
+    iosSteps.style.display = 'none';
+    badge.textContent = isAndroid ? '🤖 Android' : '💻 سطح المكتب';
+    installBtn.style.display = 'flex';
+  } else {
+    // Fallback: show manual steps for other browsers
+    androidSteps.style.display = 'block';
+    iosSteps.style.display = 'none';
+    badge.textContent = '📱 تثبيت التطبيق';
+    installBtn.style.display = 'none';
+  }
+
+  overlay.style.display = 'flex';
+}
+
+async function triggerNativeInstall() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  dismissPWAPrompt(outcome === 'accepted');
+}
+
+function dismissPWAPrompt(accepted) {
+  document.getElementById('pwa-overlay').style.display = 'none';
+  if (!accepted) {
+    localStorage.setItem(PWA_DISMISSED_KEY, Date.now().toString());
+  }
+}
+
+function closePWAPromptOutside(e) {
+  if (e.target.id === 'pwa-overlay') dismissPWAPrompt(false);
+}
+
+// Track when actually installed
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  showToast('🎉 تم تثبيت التطبيق بنجاح!');
+  localStorage.removeItem(PWA_DISMISSED_KEY);
+});
+
+// Also offer install from settings page
+function showInstallFromSettings() {
+  localStorage.removeItem(PWA_DISMISSED_KEY);
+  showPWAPrompt();
+}
+
+
 // ---- PWA: Service Worker ----
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -1885,6 +2101,87 @@ function handleHashRoute() {
   else if (hash === '#settings') showPage('page-settings');
 }
 </script>
+
+
+<!-- ====== PWA INSTALL PROMPT ====== -->
+<div id="pwa-overlay" style="display:none;" class="pwa-prompt-overlay" onclick="closePWAPromptOutside(event)">
+  <div class="pwa-prompt-card" id="pwa-card">
+    <div class="pwa-os-badge" id="pwa-os-badge">📱 تثبيت التطبيق</div>
+
+    <div class="pwa-app-row">
+      <div class="pwa-app-icon">
+        <img src="albait-icon-192.png" alt="البيت السعيد" onerror="this.style.background='linear-gradient(135deg,#0a7c6b,#e67e22)';this.style.display='flex';">
+      </div>
+      <div>
+        <div class="pwa-app-name">البيت السعيد</div>
+        <div class="pwa-app-desc">ثبّته على شاشتك الرئيسية<br>للوصول السريع بدون متصفح</div>
+      </div>
+    </div>
+
+    <!-- Android / Desktop prompt -->
+    <div id="pwa-android-steps">
+      <div class="pwa-steps">
+        <div class="pwa-step">
+          <div class="pwa-step-num">١</div>
+          <div class="pwa-step-icon">🌐</div>
+          <div class="pwa-step-text">افتح التطبيق في <strong>Chrome</strong></div>
+        </div>
+        <div class="pwa-step">
+          <div class="pwa-step-num">٢</div>
+          <div class="pwa-step-icon">⋮</div>
+          <div class="pwa-step-text">اضغط على <strong>القائمة ⋮</strong> في الزاوية</div>
+        </div>
+        <div class="pwa-step">
+          <div class="pwa-step-num">٣</div>
+          <div class="pwa-step-icon">📲</div>
+          <div class="pwa-step-text">اختر <strong>"إضافة إلى الشاشة الرئيسية"</strong></div>
+        </div>
+        <div class="pwa-step">
+          <div class="pwa-step-num">٤</div>
+          <div class="pwa-step-icon">✅</div>
+          <div class="pwa-step-text">اضغط <strong>إضافة</strong> — جاهز!</div>
+        </div>
+      </div>
+      <div class="pwa-btn-row">
+        <button class="pwa-btn-install" id="pwa-install-btn" onclick="triggerNativeInstall()">
+          📲 تثبيت الآن
+        </button>
+        <button class="pwa-btn-later" onclick="dismissPWAPrompt(false)">لاحقاً</button>
+      </div>
+    </div>
+
+    <!-- iOS Safari prompt -->
+    <div id="pwa-ios-steps" style="display:none;">
+      <div class="pwa-steps">
+        <div class="pwa-step">
+          <div class="pwa-step-num">١</div>
+          <div class="pwa-step-icon">🧭</div>
+          <div class="pwa-step-text">افتح التطبيق في <strong>Safari</strong></div>
+        </div>
+        <div class="pwa-step">
+          <div class="pwa-step-num">٢</div>
+          <div class="pwa-step-icon">⬆️</div>
+          <div class="pwa-step-text">اضغط أيقونة <strong>المشاركة</strong> ⬆️ في الأسفل</div>
+        </div>
+        <div class="pwa-step">
+          <div class="pwa-step-num">٣</div>
+          <div class="pwa-step-icon">➕</div>
+          <div class="pwa-step-text">اختر <strong>"إضافة إلى الشاشة الرئيسية"</strong></div>
+        </div>
+        <div class="pwa-step">
+          <div class="pwa-step-num">٤</div>
+          <div class="pwa-step-icon">✅</div>
+          <div class="pwa-step-text">اضغط <strong>إضافة</strong> — جاهز!</div>
+        </div>
+      </div>
+      <div class="pwa-ios-arrow">👆</div>
+      <div class="pwa-btn-row">
+        <button class="pwa-btn-install" onclick="dismissPWAPrompt(true)">فهمت ✅</button>
+        <button class="pwa-btn-later" onclick="dismissPWAPrompt(false)">لاحقاً</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
