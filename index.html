@@ -630,6 +630,114 @@ input, select, textarea { font: inherit; }
   56%      { transform: scale(1); }
 }
 
+
+/* ============================================================
+   ADMIN PANEL
+   ============================================================ */
+.admin-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: linear-gradient(135deg, #7c3aed, #9b59b6);
+  color: white; padding: 3px 12px; border-radius: var(--radius-full);
+  font-size: var(--text-xs); font-weight: 800; margin-bottom: var(--space-4);
+}
+.admin-kpi-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3); margin-bottom: var(--space-4);
+}
+.admin-kpi {
+  background: var(--color-surface-2); border-radius: var(--radius-xl);
+  padding: var(--space-4); text-align: center;
+  border: 1px solid var(--color-divider); box-shadow: var(--shadow-card);
+}
+.admin-kpi-val {
+  font-family: var(--font-display); font-size: var(--text-2xl);
+  font-weight: 900; color: var(--color-primary);
+}
+.admin-kpi-lbl { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; }
+
+.admin-card {
+  background: var(--color-surface-2); border-radius: var(--radius-xl);
+  padding: var(--space-4); margin-bottom: var(--space-4);
+  border: 1px solid var(--color-divider); box-shadow: var(--shadow-card);
+}
+.admin-card-title {
+  font-family: var(--font-display); font-size: var(--text-base);
+  font-weight: 800; color: var(--color-text);
+  margin-bottom: var(--space-3); padding-bottom: var(--space-2);
+  border-bottom: 1.5px solid var(--color-divider);
+  display: flex; align-items: center; gap: var(--space-2);
+}
+
+.admin-user-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) 0; border-bottom: 1px dashed var(--color-divider);
+  cursor: pointer; transition: background var(--transition);
+  border-radius: var(--radius-md);
+}
+.admin-user-row:last-child { border-bottom: none; }
+.admin-user-row:hover { background: var(--color-surface-offset); padding-right: var(--space-2); padding-left: var(--space-2); }
+.admin-avatar {
+  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--color-primary), #e67e22);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; color: white; font-weight: 800;
+}
+.admin-user-info { flex: 1; min-width: 0; }
+.admin-user-email { font-size: var(--text-sm); font-weight: 700; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-user-meta { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; }
+.admin-user-bal { font-size: var(--text-sm); font-weight: 800; }
+.admin-user-bal.positive { color: var(--color-primary); }
+.admin-user-bal.negative { color: #e74c3c; }
+
+/* User detail modal */
+.admin-modal-overlay {
+  position: fixed; inset: 0; z-index: 1500;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: var(--space-4);
+}
+.admin-modal {
+  background: var(--color-surface-2); border-radius: var(--radius-xl);
+  width: 100%; max-width: 480px; max-height: 80dvh;
+  overflow-y: auto; padding: var(--space-5);
+  box-shadow: var(--shadow-lg);
+  animation: slide-up 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+.admin-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+.admin-modal-title { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 800; }
+.admin-close-btn { font-size: 1.5rem; color: var(--color-text-muted); background: none; border: none; cursor: pointer; padding: 4px; }
+
+.admin-txn-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-md);
+  margin-bottom: var(--space-2); background: var(--color-surface-offset);
+  font-size: var(--text-xs);
+}
+.admin-txn-type { font-weight: 700; }
+.admin-txn-type.inc { color: var(--color-primary); }
+.admin-txn-type.exp { color: #e67e22; }
+
+.admin-empty { text-align: center; padding: var(--space-6); color: var(--color-text-faint); font-size: var(--text-sm); }
+
+.admin-loading { text-align: center; padding: var(--space-5); color: var(--color-text-muted); font-size: var(--text-sm); }
+
+.btn-admin-danger {
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-md);
+  background: #fef2f2; color: #dc2626; font-size: var(--text-xs);
+  font-weight: 700; border: 1px solid #fecaca;
+}
+.btn-admin-danger:hover { background: #dc2626; color: white; }
+
+.admin-refresh-btn {
+  margin-right: auto; padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md); background: var(--color-primary-light);
+  color: var(--color-primary); font-size: var(--text-xs); font-weight: 700;
+  border: 1px solid var(--color-border);
+}
+
 </style>
 </head>
 <body>
@@ -1173,6 +1281,47 @@ input, select, textarea { font: inherit; }
 </div>
   </div>
 
+
+  <!-- ====== ADMIN PAGE ====== -->
+  <div class="page" id="page-admin">
+    <div class="admin-badge">👑 لوحة الأدمن</div>
+
+    <!-- KPIs -->
+    <div class="admin-kpi-grid" id="admin-kpis">
+      <div class="admin-kpi"><div class="admin-kpi-val" id="akpi-users">—</div><div class="admin-kpi-lbl">👥 مستخدم</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val" id="akpi-txns">—</div><div class="admin-kpi-lbl">📋 معاملة</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val" id="akpi-income">—</div><div class="admin-kpi-lbl">💰 إجمالي وارد</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val" id="akpi-expense">—</div><div class="admin-kpi-lbl">💸 إجمالي مصروف</div></div>
+    </div>
+
+    <!-- Users list -->
+    <div class="admin-card">
+      <div class="admin-card-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        المستخدمين
+        <button class="admin-refresh-btn" onclick="loadAdminData()">🔄 تحديث</button>
+      </div>
+      <div id="admin-users-list">
+        <div class="admin-loading">⏳ جاري التحميل...</div>
+      </div>
+    </div>
+
+    <div class="app-signature">
+      <span>مصمم بحب <span class="sig-heart">❤️</span> Shady Nassef</span>
+    </div>
+  </div>
+
+  <!-- Admin User Detail Modal -->
+  <div id="admin-modal-overlay" class="admin-modal-overlay" style="display:none;" onclick="closeAdminModal(event)">
+    <div class="admin-modal" id="admin-modal">
+      <div class="admin-modal-header">
+        <div class="admin-modal-title" id="admin-modal-title">تفاصيل المستخدم</div>
+        <button class="admin-close-btn" onclick="closeAdminModalDirect()">✕</button>
+      </div>
+      <div id="admin-modal-body"></div>
+    </div>
+  </div>
+
   <!-- Bottom Nav -->
   <nav class="bottom-nav">
     <button class="nav-item active" id="nav-dashboard" onclick="showPage('page-dashboard')">
@@ -1205,6 +1354,12 @@ input, select, textarea { font: inherit; }
       </div>
       إعدادات
     </button>
+    <button class="nav-item" id="nav-admin" style="display:none;" onclick="showPage('page-admin')">
+      <div class="nav-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      </div>
+      أدمن
+    </button>
   </nav>
 </div>
 
@@ -1212,6 +1367,166 @@ input, select, textarea { font: inherit; }
 <div class="success-toast" id="toast"></div>
 
 <script>
+
+
+// ============================================================
+// ADMIN PANEL — shady.nasif@gmail.com
+// ============================================================
+const ADMIN_EMAIL = 'shady.nasif@gmail.com';
+let adminUsersData = [];
+
+function isAdmin() {
+  return currentUser && currentUser.email === ADMIN_EMAIL;
+}
+
+function checkAdminAccess() {
+  const navBtn = document.getElementById('nav-admin');
+  if (navBtn) navBtn.style.display = isAdmin() ? 'flex' : 'none';
+}
+
+async function loadAdminData() {
+  if (!isAdmin()) return;
+  document.getElementById('admin-users-list').innerHTML = '<div class="admin-loading">⏳ جاري تحميل البيانات...</div>';
+
+  try {
+    // Get all users' transactions via collection group query
+    const snap = await db.collectionGroup('transactions').limit(1000).get();
+
+    // Group by user uid
+    const usersMap = {};
+    snap.docs.forEach(doc => {
+      const parts = doc.ref.path.split('/');
+      const uid = parts[1]; // users/{uid}/transactions/{id}
+      if (!usersMap[uid]) usersMap[uid] = { uid, txns: [], income: 0, expense: 0 };
+      const d = doc.data();
+      usersMap[uid].txns.push({ id: doc.id, ...d });
+      if (d.type === 'income') usersMap[uid].income += (d.amount || 0);
+      else usersMap[uid].expense += (d.amount || 0);
+      // Grab email/name if stored
+      if (d.userEmail && !usersMap[uid].email) usersMap[uid].email = d.userEmail;
+      if (d.userName && !usersMap[uid].name)   usersMap[uid].name  = d.userName;
+    });
+
+    adminUsersData = Object.values(usersMap);
+    const totalTxns   = snap.size;
+    const totalIncome  = adminUsersData.reduce((s,u) => s + u.income, 0);
+    const totalExpense = adminUsersData.reduce((s,u) => s + u.expense, 0);
+
+    // KPIs
+    document.getElementById('akpi-users').textContent   = adminUsersData.length;
+    document.getElementById('akpi-txns').textContent    = totalTxns;
+    document.getElementById('akpi-income').textContent  = formatMoney(totalIncome);
+    document.getElementById('akpi-expense').textContent = formatMoney(totalExpense);
+
+    // Users list
+    if (adminUsersData.length === 0) {
+      document.getElementById('admin-users-list').innerHTML = '<div class="admin-empty">لا يوجد مستخدمين بعد</div>';
+      return;
+    }
+
+    // Sort by most transactions
+    adminUsersData.sort((a,b) => b.txns.length - a.txns.length);
+
+    const listHtml = adminUsersData.map((u,i) => {
+      const bal = u.income - u.expense;
+      const balClass = bal >= 0 ? 'positive' : 'negative';
+      const balSign  = bal >= 0 ? '+' : '';
+      const label = u.email || u.name || u.uid.slice(0,10) + '...';
+      const initials = (u.email || u.uid).slice(0,2).toUpperCase();
+      return `
+        <div class="admin-user-row" onclick="openAdminUserModal(${i})">
+          <div class="admin-avatar">${initials}</div>
+          <div class="admin-user-info">
+            <div class="admin-user-email">${label}</div>
+            <div class="admin-user-meta">${u.txns.length} معاملة · وارد ${formatMoney(u.income)} · مصروف ${formatMoney(u.expense)}</div>
+          </div>
+          <div class="admin-user-bal ${balClass}">${balSign}${formatMoney(Math.abs(bal))}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('admin-users-list').innerHTML = listHtml;
+
+  } catch(e) {
+    console.error('Admin load error:', e);
+    if (e.code === 'permission-denied') {
+      document.getElementById('admin-users-list').innerHTML =
+        '<div class="admin-empty">❌ يجب إضافة Collection Group index في Firestore<br><small>راجع التعليمات أدناه</small></div>';
+    } else {
+      document.getElementById('admin-users-list').innerHTML = '<div class="admin-empty">❌ خطأ: ' + e.message + '</div>';
+    }
+  }
+}
+
+function openAdminUserModal(idx) {
+  const u = adminUsersData[idx];
+  if (!u) return;
+  const label = u.email || u.name || u.uid;
+  document.getElementById('admin-modal-title').textContent = label;
+
+  const sorted = [...u.txns].sort((a,b) => new Date(b.date||b.createdAt?.toDate?.()?.toISOString()||0) - new Date(a.date||a.createdAt?.toDate?.()?.toISOString()||0));
+
+  const txnRows = sorted.slice(0,50).map(t => {
+    const isInc = t.type === 'income';
+    const cat = t.category || t.source || (isInc ? 'وارد' : 'مصروف');
+    const sign = isInc ? '+' : '-';
+    const cls  = isInc ? 'inc' : 'exp';
+    return `<div class="admin-txn-row">
+      <div>
+        <div class="admin-txn-type ${cls}">${sign} ${formatMoney(t.amount || 0)} ${CFG.currency}</div>
+        <div style="color:var(--color-text-muted);font-size:10px;">${cat} · ${t.date || '—'}</div>
+        ${t.note || t.description ? `<div style="color:var(--color-text-faint);font-size:10px;">${t.note||t.description}</div>` : ''}
+      </div>
+      <button class="btn-admin-danger" onclick="adminDeleteTxn('${u.uid}','${t.id}',${idx})">🗑️</button>
+    </div>`;
+  }).join('');
+
+  document.getElementById('admin-modal-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4);">
+      <div class="admin-kpi"><div class="admin-kpi-val" style="font-size:var(--text-lg);">${formatMoney(u.income)}</div><div class="admin-kpi-lbl">💰 وارد</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val" style="font-size:var(--text-lg);color:#e67e22;">${formatMoney(u.expense)}</div><div class="admin-kpi-lbl">💸 مصروف</div></div>
+    </div>
+    <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-3);font-weight:700;">آخر ${Math.min(sorted.length,50)} معاملة:</div>
+    ${txnRows || '<div class="admin-empty">لا توجد معاملات</div>'}
+    <div style="margin-top:var(--space-4);">
+      <button class="btn-danger" style="width:100%;font-size:var(--text-xs);" onclick="adminClearUserData('${u.uid}')">
+        🗑️ مسح كل بيانات هذا المستخدم
+      </button>
+    </div>
+  `;
+
+  document.getElementById('admin-modal-overlay').style.display = 'flex';
+}
+
+async function adminDeleteTxn(uid, txnId, userIdx) {
+  if (!confirm('حذف هذه المعاملة؟')) return;
+  try {
+    await db.collection('users').doc(uid).collection('transactions').doc(txnId).delete();
+    showToast('✅ تم الحذف');
+    await loadAdminData();
+    openAdminUserModal(userIdx);
+  } catch(e) { showToast('❌ خطأ: ' + e.message, true); }
+}
+
+async function adminClearUserData(uid) {
+  if (!confirm('مسح كل معاملات هذا المستخدم نهائياً؟')) return;
+  if (!confirm('تأكيد نهائي؟')) return;
+  try {
+    const snap = await db.collection('users').doc(uid).collection('transactions').get();
+    const batch = db.batch();
+    snap.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    showToast('✅ تم المسح');
+    closeAdminModalDirect();
+    await loadAdminData();
+  } catch(e) { showToast('❌ خطأ: ' + e.message, true); }
+}
+
+function closeAdminModal(e) {
+  if (e.target.id === 'admin-modal-overlay') closeAdminModalDirect();
+}
+function closeAdminModalDirect() {
+  document.getElementById('admin-modal-overlay').style.display = 'none';
+}
 
 // ============================================================
 // SETTINGS ENGINE
@@ -1502,6 +1817,7 @@ function showApp(user) {
   document.getElementById('greeting-text').textContent = `أهلاً، ${name} 👋`;
 
   applySettings();
+  checkAdminAccess();
   if (!isDemoMode && db) {
     loadTransactionsFromFirebase();
   } else {
@@ -1862,7 +2178,7 @@ function changeMonth(delta) {
 
 const PAGE_NAV_MAP = {
   'page-dashboard': 'nav-dashboard', 'page-income': 'nav-income',
-  'page-expense': 'nav-expense', 'page-statement': 'nav-statement', 'page-settings': 'nav-settings'
+  'page-expense': 'nav-expense', 'page-statement': 'nav-statement', 'page-settings': 'nav-settings', 'page-admin': 'nav-admin'
 };
 function showPage(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1873,6 +2189,7 @@ function showPage(pageId) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (pageId === 'page-statement') renderStatement();
   if (pageId === 'page-settings') applySettings();
+  if (pageId === 'page-admin') loadAdminData();
 }
 
 // ============================================================
