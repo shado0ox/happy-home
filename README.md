@@ -2,9 +2,7 @@
 
 تطبيق ويب متكامل لإدارة مصاريف المنزل، مبني بـ HTML/CSS/JavaScript مع Firebase.
 
-## 🔗 الرابط المباشر
-> بعد النشر: `https://[username].github.io/[repo-name]/`
-
+##
 ## ✨ المميزات
 - 🔐 تسجيل دخول بـ Firebase Authentication
 - 💰 تسجيل المبالغ الواردة بمصادر متعددة
