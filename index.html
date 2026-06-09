@@ -1405,37 +1405,66 @@ function loadDemoData() {
 // ============================================================
 // FIREBASE CRUD
 // ============================================================
+let unsubscribeFirestore = null;
+
 function loadTransactionsFromFirebase() {
-  // Real-time listener for live sync across devices
-  db.collection('users').doc(currentUser.uid)
+  // Unsubscribe any existing listener first to prevent duplicates
+  if (unsubscribeFirestore) {
+    unsubscribeFirestore();
+    unsubscribeFirestore = null;
+  }
+
+  unsubscribeFirestore = db.collection('users').doc(currentUser.uid)
     .collection('transactions')
     .orderBy('createdAt', 'desc')
-    .limit(200)
+    .limit(500)
     .onSnapshot(snap => {
       transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       refreshDashboard();
       renderStatement();
     }, err => {
       console.error('Firestore error:', err);
-      showToast('تعذّر تحميل البيانات ❌', true);
+      // If permission denied → rules issue
+      if (err.code === 'permission-denied') {
+        showToast('❌ خطأ في الصلاحيات — راجع Firestore Rules', true);
+      } else {
+        showToast('❌ تعذّر تحميل البيانات', true);
+      }
     });
 }
 
 async function saveToFirebase(txn) {
   if (isDemoMode) {
     transactions.unshift({ ...txn, id: 'local_' + Date.now() });
+    refreshDashboard();
+    renderStatement();
     return;
   }
-  const ref = await db.collection('users').doc(currentUser.uid)
-    .collection('transactions').add(txn);
-  transactions.unshift({ id: ref.id, ...txn });
+  // Don't push to local array — onSnapshot listener will handle it automatically
+  try {
+    await db.collection('users').doc(currentUser.uid)
+      .collection('transactions').add(txn);
+  } catch(e) {
+    console.error('Save error:', e);
+    showToast('❌ خطأ في الحفظ: ' + e.message, true);
+    throw e;
+  }
 }
 
 async function deleteFromFirebase(id) {
-  transactions = transactions.filter(t => t.id !== id);
-  if (!isDemoMode && db) {
+  if (isDemoMode) {
+    transactions = transactions.filter(t => t.id !== id);
+    refreshDashboard();
+    renderStatement();
+    return;
+  }
+  try {
     await db.collection('users').doc(currentUser.uid)
       .collection('transactions').doc(id).delete();
+    // onSnapshot will update local array automatically
+  } catch(e) {
+    console.error('Delete error:', e);
+    showToast('❌ خطأ في الحذف', true);
   }
 }
 
@@ -1450,13 +1479,13 @@ async function saveIncome() {
   if (!amount || amount <= 0) { showToast('أدخل مبلغاً صحيحاً ⚠️', true); return; }
   if (!date) { showToast('اختر التاريخ ⚠️', true); return; }
   const txn = { type: 'income', amount, source, date, note, createdAt: Date.now() };
-  await saveToFirebase(txn);
-  document.getElementById('income-amount').value = '';
-  document.getElementById('income-note').value = '';
-  showToast('✅ تم حفظ المبلغ الوارد');
-  refreshDashboard();
-  renderStatement();
-  if (CFG.autoHome) setTimeout(() => showPage('page-dashboard'), 800);
+  try {
+    await saveToFirebase(txn);
+    document.getElementById('income-amount').value = '';
+    document.getElementById('income-note').value = '';
+    showToast('✅ تم حفظ المبلغ الوارد');
+    if (CFG.autoHome) setTimeout(() => showPage('page-dashboard'), 800);
+  } catch(e) { /* error already shown in saveToFirebase */ }
 }
 
 // ============================================================
@@ -1471,13 +1500,13 @@ async function saveExpense() {
   if (!amount || amount <= 0) { showToast('أدخل مبلغاً صحيحاً ⚠️', true); return; }
   if (!date) { showToast('اختر التاريخ ⚠️', true); return; }
   const txn = { type: 'expense', amount, category, date, desc, createdAt: Date.now() };
-  await saveToFirebase(txn);
-  document.getElementById('expense-amount').value = '';
-  document.getElementById('expense-desc').value = '';
-  showToast('✅ تم حفظ المصروف');
-  refreshDashboard();
-  renderStatement();
-  if (CFG.autoHome) setTimeout(() => showPage('page-dashboard'), 800);
+  try {
+    await saveToFirebase(txn);
+    document.getElementById('expense-amount').value = '';
+    document.getElementById('expense-desc').value = '';
+    showToast('✅ تم حفظ المصروف');
+    if (CFG.autoHome) setTimeout(() => showPage('page-dashboard'), 800);
+  } catch(e) { /* error already shown in saveToFirebase */ }
 }
 
 function selectCat(el) {
@@ -1761,7 +1790,13 @@ async function handleRegister() {
 
 async function handleLogout() {
   if (!confirm('هل تريد تسجيل الخروج؟')) return;
+  // Stop Firestore listener
+  if (unsubscribeFirestore) {
+    unsubscribeFirestore();
+    unsubscribeFirestore = null;
+  }
   transactions = [];
+  currentUser = null;
   if (isDemoMode) {
     isDemoMode = false;
     showScreen('auth');
@@ -1770,7 +1805,7 @@ async function handleLogout() {
   try {
     isDemoMode = false;
     await auth.signOut();
-    // onAuthStateChanged will fire with null → showAuth() called automatically
+    // onAuthStateChanged fires with null → showAuth() automatically
   } catch(e) {
     console.error('Logout error:', e);
     showScreen('auth');
