@@ -1494,7 +1494,7 @@ async function loadAdminData() {
     });
 
     adminUsersData = Object.values(usersMap);
-    const totalTxns   = snap.size;
+    const totalTxns = txnSnap.size;
     const totalIncome  = adminUsersData.reduce((s,u) => s + u.income, 0);
     const totalExpense = adminUsersData.reduce((s,u) => s + u.expense, 0);
 
