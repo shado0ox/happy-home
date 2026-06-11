@@ -1419,7 +1419,14 @@ async function loginWithGoogle() {
     showAuthError('');
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    await auth.signInWithPopup(provider);
+    const cred = await auth.signInWithPopup(provider);
+    // Save/update profile doc so admin sees Google users too
+    await db.collection('users').doc(cred.user.uid).set({
+      email: cred.user.email,
+      name:  cred.user.displayName || '',
+      createdAt: Date.now(),
+      provider: 'google'
+    }, { merge: true });
     // onAuthStateChanged handles the rest
   } catch(e) {
     console.error('Google login error:', e);
@@ -1453,22 +1460,37 @@ async function loadAdminData() {
   document.getElementById('admin-users-list').innerHTML = '<div class="admin-loading">⏳ جاري تحميل البيانات...</div>';
 
   try {
-    // Get all users' transactions via collection group query
-    const snap = await db.collectionGroup('transactions').limit(1000).get();
+    // Load user profiles + transactions in parallel
+    const [txnSnap, usersSnap] = await Promise.all([
+      db.collectionGroup('transactions').limit(1000).get(),
+      db.collection('users').get()
+    ]);
 
-    // Group by user uid
+    // Build user profiles map first
     const usersMap = {};
-    snap.docs.forEach(doc => {
+    usersSnap.docs.forEach(doc => {
+      const d = doc.data();
+      usersMap[doc.id] = {
+        uid: doc.id,
+        email: d.email || '',
+        name:  d.name  || '',
+        provider: d.provider || 'email',
+        txns: [], income: 0, expense: 0
+      };
+    });
+
+    // Merge transactions
+    txnSnap.docs.forEach(doc => {
       const parts = doc.ref.path.split('/');
-      const uid = parts[1]; // users/{uid}/transactions/{id}
-      if (!usersMap[uid]) usersMap[uid] = { uid, txns: [], income: 0, expense: 0 };
+      const uid = parts[1];
+      if (!usersMap[uid]) usersMap[uid] = { uid, txns: [], income: 0, expense: 0, email: '', name: '' };
       const d = doc.data();
       usersMap[uid].txns.push({ id: doc.id, ...d });
       if (d.type === 'income') usersMap[uid].income += (d.amount || 0);
       else usersMap[uid].expense += (d.amount || 0);
-      // Grab email/name if stored
+      // Fallback: grab email from transaction if not in profile
       if (d.userEmail && !usersMap[uid].email) usersMap[uid].email = d.userEmail;
-      if (d.userName && !usersMap[uid].name)   usersMap[uid].name  = d.userName;
+      if (d.userName  && !usersMap[uid].name)  usersMap[uid].name  = d.userName;
     });
 
     adminUsersData = Object.values(usersMap);
@@ -1943,18 +1965,40 @@ function loadTransactionsFromFirebase() {
 }
 
 async function saveToFirebase(txn) {
+  // Embed user info so admin can identify transactions
+  const enrichedTxn = {
+    ...txn,
+    userEmail: currentUser?.email || '',
+    userName:  currentUser?.displayName || '',
+    userId:    currentUser?.uid || '',
+  };
+
   if (isDemoMode) {
-    transactions.unshift({ ...txn, id: 'local_' + Date.now() });
+    transactions.unshift({ ...enrichedTxn, id: 'local_' + Date.now() });
     refreshDashboard();
     renderStatement();
     return;
   }
-  // Don't push to local array — onSnapshot listener will handle it automatically
+
+  // ── OPTIMISTIC UI: show immediately, don't wait for Firebase ──
+  const tempId = 'temp_' + Date.now();
+  transactions.unshift({ ...enrichedTxn, id: tempId });
+  refreshDashboard();
+  renderStatement();
+
+  // Save to Firebase in background
   try {
-    await db.collection('users').doc(currentUser.uid)
-      .collection('transactions').add(txn);
+    const ref = await db.collection('users').doc(currentUser.uid)
+      .collection('transactions').add(enrichedTxn);
+    // Replace temp entry with real ID (onSnapshot will sync shortly)
+    const idx = transactions.findIndex(t => t.id === tempId);
+    if (idx >= 0) transactions[idx].id = ref.id;
   } catch(e) {
     console.error('Save error:', e);
+    // Rollback optimistic update
+    transactions = transactions.filter(t => t.id !== tempId);
+    refreshDashboard();
+    renderStatement();
     showToast('❌ خطأ في الحفظ: ' + e.message, true);
     throw e;
   }
@@ -2009,13 +2053,12 @@ async function saveExpense() {
   if (!amount || amount <= 0) { showToast('أدخل مبلغاً صحيحاً ⚠️', true); return; }
   if (!date) { showToast('اختر التاريخ ⚠️', true); return; }
   const txn = { type: 'expense', amount, category, date, desc, createdAt: Date.now() };
-  try {
-    await saveToFirebase(txn);
-    document.getElementById('expense-amount').value = '';
-    document.getElementById('expense-desc').value = '';
-    showToast('✅ تم حفظ المصروف');
-    if (CFG.autoHome) setTimeout(() => showPage('page-dashboard'), 800);
-  } catch(e) { /* error already shown in saveToFirebase */ }
+  // Fire and forget — optimistic UI handles display immediately
+  saveToFirebase(txn).catch(() => {});
+  document.getElementById('expense-amount').value = '';
+  document.getElementById('expense-desc').value = '';
+  showToast('✅ تم حفظ المصروف');
+  if (CFG.autoHome) setTimeout(() => showPage('page-dashboard'), 800);
 }
 
 function selectCat(el) {
@@ -2285,14 +2328,19 @@ async function handleLogin() {
 }
 
 async function handleRegister() {
-  const name = document.getElementById('reg-name').value;
-  const email = document.getElementById('reg-email').value;
-  const pass = document.getElementById('reg-pass').value;
+  const name  = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass  = document.getElementById('reg-pass').value;
   if (!name || !email || !pass) { showAuthError('يرجى ملء جميع الحقول'); return; }
   if (pass.length < 8) { showAuthError('كلمة المرور يجب أن تكون ٨ أحرف على الأقل'); return; }
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     await cred.user.updateProfile({ displayName: name });
+    // Save user profile so admin can see all users (even those with 0 transactions)
+    await db.collection('users').doc(cred.user.uid).set({
+      email, name, createdAt: Date.now(), provider: 'email'
+    }, { merge: true });
+    // onAuthStateChanged fires → showApp()
   } catch (e) {
     showAuthError('خطأ في إنشاء الحساب: ' + e.message);
   }
