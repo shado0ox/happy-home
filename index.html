@@ -766,6 +766,59 @@ input, select, textarea { font: inherit; }
 .btn-social:active { transform: translateY(0); }
 .btn-social svg { flex-shrink: 0; }
 
+
+/* ============================================================
+   BIOMETRIC LOCK SCREEN
+   ============================================================ */
+#bio-lock-screen {
+  position: fixed; inset: 0; z-index: 3000;
+  background: var(--color-bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: var(--space-6); padding: var(--space-8);
+}
+.bio-logo {
+  width: 88px; height: 88px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-amber));
+  border-radius: var(--radius-xl);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.5rem;
+  box-shadow: 0 8px 32px rgba(10,124,107,0.3);
+}
+.bio-title {
+  font-family: var(--font-display); font-size: var(--text-xl);
+  font-weight: 900; color: var(--color-text); text-align: center;
+}
+.bio-subtitle {
+  font-size: var(--text-sm); color: var(--color-text-muted);
+  text-align: center; margin-top: -var(--space-4);
+}
+.bio-btn {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  padding: var(--space-5) var(--space-8);
+  background: var(--color-surface-2);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  cursor: pointer; transition: all var(--transition);
+  box-shadow: var(--shadow-card);
+  min-width: 160px;
+}
+.bio-btn:hover { border-color: var(--color-primary); transform: scale(1.03); }
+.bio-btn:active { transform: scale(0.98); }
+.bio-btn-icon { font-size: 2.8rem; }
+.bio-btn-label { font-size: var(--text-sm); font-weight: 700; color: var(--color-primary); }
+.bio-skip-btn {
+  font-size: var(--text-xs); color: var(--color-text-faint);
+  text-decoration: underline; cursor: pointer; margin-top: var(--space-2);
+}
+.bio-pulse {
+  animation: bio-pulse 1.5s ease-in-out infinite;
+}
+@keyframes bio-pulse {
+  0%,100% { box-shadow: 0 8px 32px rgba(10,124,107,0.3); }
+  50%      { box-shadow: 0 8px 48px rgba(10,124,107,0.6); }
+}
+
 </style>
 </head>
 <body>
@@ -1295,6 +1348,7 @@ input, select, textarea { font: inherit; }
         </div>
         <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(this)">
         <button class="btn-secondary" style="margin-bottom:var(--space-3);width:100%;" onclick="showInstallFromSettings()">📲 تثبيت التطبيق على الموبايل</button>
+        <button class="btn-secondary" id="bio-toggle-btn" style="margin-bottom:var(--space-3);width:100%;" onclick="toggleBioSetting()">🔐 تفعيل الدخول بالبصمة / الوجه</button>
         <button class="btn-secondary" style="margin-bottom:var(--space-3);width:100%;" onclick="resetSettings()">🔄 إعادة ضبط الإعدادات</button>
       </div>
 
@@ -1363,6 +1417,21 @@ input, select, textarea { font: inherit; }
     </div>
   </div>
 
+
+  <!-- ====== BIOMETRIC LOCK SCREEN ====== -->
+  <div id="bio-lock-screen" style="display:none;">
+    <div class="bio-logo bio-pulse">🏠</div>
+    <div>
+      <div class="bio-title">البيت السعيد</div>
+      <div class="bio-subtitle" id="bio-user-label">مرحباً بعودتك</div>
+    </div>
+    <button class="bio-btn" id="bio-main-btn" onclick="triggerBiometric()">
+      <div class="bio-btn-icon" id="bio-icon">🔒</div>
+      <div class="bio-btn-label" id="bio-label">اضغط للدخول</div>
+    </button>
+    <div class="bio-skip-btn" onclick="bioSkipToPassword()">الدخول بكلمة المرور</div>
+  </div>
+
   <!-- Bottom Nav -->
   <nav class="bottom-nav">
     <button class="nav-item active" id="nav-dashboard" onclick="showPage('page-dashboard')">
@@ -1410,6 +1479,217 @@ input, select, textarea { font: inherit; }
 <script>
 
 
+
+
+// ============================================================
+// BIOMETRIC LOCK — WebAuthn / Face ID / Fingerprint
+// ============================================================
+const BIO_KEY        = 'albait_bio_enabled';
+const BIO_CRED_KEY   = 'albait_bio_cred_id';
+const BIO_SESSION    = 'albait_bio_unlocked';
+const BIO_TIMEOUT    = 5 * 60 * 1000; // 5 minutes
+
+function isBiometricSupported() {
+  return window.PublicKeyCredential !== undefined &&
+         typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function';
+}
+
+async function biometricAvailable() {
+  if (!isBiometricSupported()) return false;
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch { return false; }
+}
+
+function isBioEnabled() {
+  return localStorage.getItem(BIO_KEY) === 'true';
+}
+
+function isBioSessionActive() {
+  const t = sessionStorage.getItem(BIO_SESSION);
+  if (!t) return false;
+  return (Date.now() - parseInt(t)) < BIO_TIMEOUT;
+}
+
+// Called after successful Firebase login — register biometric if available
+async function offerBiometricSetup() {
+  if (!currentUser || isBioEnabled()) return;
+  const available = await biometricAvailable();
+  if (!available) return;
+
+  // Ask user once
+  const offered = localStorage.getItem('albait_bio_offered');
+  if (offered) return;
+  localStorage.setItem('albait_bio_offered', '1');
+
+  setTimeout(() => {
+    showBioSetupToast();
+  }, 1500);
+}
+
+function showBioSetupToast() {
+  const toast = document.createElement('div');
+  toast.id = 'bio-setup-toast';
+  toast.style.cssText = `
+    position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+    background:var(--color-surface-2);border:1.5px solid var(--color-primary);
+    border-radius:var(--radius-xl);padding:16px 20px;z-index:4000;
+    box-shadow:var(--shadow-lg);max-width:340px;width:90%;
+    animation:slide-up 0.3s ease;
+  `;
+  toast.innerHTML = `
+    <div style="font-weight:800;color:var(--color-text);margin-bottom:8px;font-size:15px;">
+      🔐 تفعيل الدخول ببصمة الوجه أو الإصبع؟
+    </div>
+    <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:14px;">
+      ادخل بسرعة في المرات القادمة بدون باسورد
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="enableBiometric()" style="flex:1;padding:10px;border-radius:10px;
+        background:var(--color-primary);color:white;font-weight:700;font-size:13px;">
+        ✅ تفعيل
+      </button>
+      <button onclick="document.getElementById('bio-setup-toast')?.remove()" 
+        style="padding:10px 16px;border-radius:10px;
+        background:var(--color-surface-offset);color:var(--color-text-muted);
+        font-size:13px;border:1px solid var(--color-border);">
+        لاحقاً
+      </button>
+    </div>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => toast?.remove(), 12000);
+}
+
+async function enableBiometric() {
+  document.getElementById('bio-setup-toast')?.remove();
+  try {
+    const uid = currentUser.uid;
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'البيت السعيد', id: location.hostname },
+        user: {
+          id: new TextEncoder().encode(uid),
+          name: currentUser.email || uid,
+          displayName: currentUser.displayName || 'مستخدم'
+        },
+        pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+          requireResidentKey: false
+        },
+        timeout: 60000,
+        attestation: 'none'
+      }
+    });
+
+    // Save credential id
+    const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+    localStorage.setItem(BIO_CRED_KEY, credId);
+    localStorage.setItem(BIO_KEY, 'true');
+    sessionStorage.setItem(BIO_SESSION, Date.now().toString());
+    showToast('✅ تم تفعيل الدخول البيومتري!');
+  } catch(e) {
+    if (e.name !== 'NotAllowedError') {
+      showToast('⚠️ تعذّر تفعيل البصمة: ' + e.message, true);
+    }
+  }
+}
+
+async function triggerBiometric() {
+  const btn = document.getElementById('bio-main-btn');
+  btn.style.opacity = '0.7';
+
+  try {
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+
+    const credIdStr = localStorage.getItem(BIO_CRED_KEY);
+    const allowCreds = credIdStr ? [{
+      id: Uint8Array.from(atob(credIdStr), c => c.charCodeAt(0)),
+      type: 'public-key',
+      transports: ['internal']
+    }] : [];
+
+    await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: allowCreds,
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+
+    // Success
+    sessionStorage.setItem(BIO_SESSION, Date.now().toString());
+    hideBioLock();
+  } catch(e) {
+    btn.style.opacity = '1';
+    if (e.name === 'NotAllowedError') {
+      document.getElementById('bio-label').textContent = 'حاول مجدداً';
+    } else {
+      bioSkipToPassword();
+    }
+  }
+}
+
+function showBioLock() {
+  if (!isBioEnabled()) return false;
+  if (isBioSessionActive()) return false;
+
+  const screen = document.getElementById('bio-lock-screen');
+  if (!screen) return false;
+
+  // Set icon based on device
+  const isIOS = /iphone|ipad/i.test(navigator.userAgent);
+  document.getElementById('bio-icon').textContent  = isIOS ? '👤' : '👆';
+  document.getElementById('bio-label').textContent = isIOS ? 'Face ID / Touch ID' : 'بصمة الإصبع';
+
+  const name = currentUser?.displayName || currentUser?.email?.split('@')[0] || '';
+  if (name) document.getElementById('bio-user-label').textContent = `أهلاً، ${name} 👋`;
+
+  screen.style.display = 'flex';
+
+  // Auto-trigger after short delay
+  setTimeout(triggerBiometric, 600);
+  return true;
+}
+
+function hideBioLock() {
+  const screen = document.getElementById('bio-lock-screen');
+  if (screen) screen.style.display = 'none';
+}
+
+function bioSkipToPassword() {
+  hideBioLock();
+  // Sign out and show login screen
+  if (auth) auth.signOut();
+}
+
+
+function toggleBioSetting() {
+  if (isBioEnabled()) {
+    disableBiometric();
+    document.getElementById('bio-toggle-btn').textContent = '🔐 تفعيل الدخول بالبصمة / الوجه';
+  } else {
+    enableBiometric().then(() => {
+      document.getElementById('bio-toggle-btn').textContent = '🔓 إيقاف الدخول البيومتري';
+    });
+  }
+}
+
+function disableBiometric() {
+  localStorage.removeItem(BIO_KEY);
+  localStorage.removeItem(BIO_CRED_KEY);
+  localStorage.removeItem('albait_bio_offered');
+  sessionStorage.removeItem(BIO_SESSION);
+  showToast('تم إيقاف الدخول البيومتري');
+}
 
 // ============================================================
 // SOCIAL LOGIN — Google & Apple
@@ -1460,26 +1740,11 @@ async function loadAdminData() {
   document.getElementById('admin-users-list').innerHTML = '<div class="admin-loading">⏳ جاري تحميل البيانات...</div>';
 
   try {
-    // Load user profiles + transactions in parallel
-    const [txnSnap, usersSnap] = await Promise.all([
-      db.collectionGroup('transactions').limit(1000).get(),
-      db.collection('users').get()
-    ]);
+    // Step 1: Get all transactions
+    const txnSnap = await db.collectionGroup('transactions').limit(1000).get();
 
-    // Build user profiles map first
+    // Step 2: Build users map from transactions
     const usersMap = {};
-    usersSnap.docs.forEach(doc => {
-      const d = doc.data();
-      usersMap[doc.id] = {
-        uid: doc.id,
-        email: d.email || '',
-        name:  d.name  || '',
-        provider: d.provider || 'email',
-        txns: [], income: 0, expense: 0
-      };
-    });
-
-    // Merge transactions
     txnSnap.docs.forEach(doc => {
       const parts = doc.ref.path.split('/');
       const uid = parts[1];
@@ -1488,13 +1753,26 @@ async function loadAdminData() {
       usersMap[uid].txns.push({ id: doc.id, ...d });
       if (d.type === 'income') usersMap[uid].income += (d.amount || 0);
       else usersMap[uid].expense += (d.amount || 0);
-      // Fallback: grab email from transaction if not in profile
-      if (d.userEmail && !usersMap[uid].email) usersMap[uid].email = d.userEmail;
-      if (d.userName  && !usersMap[uid].name)  usersMap[uid].name  = d.userName;
+      if (d.userEmail) usersMap[uid].email = usersMap[uid].email || d.userEmail;
+      if (d.userName)  usersMap[uid].name  = usersMap[uid].name  || d.userName;
     });
 
+    // Step 3: Fetch each user profile doc directly (handles phantom docs)
+    const uids = Object.keys(usersMap);
+    await Promise.all(uids.map(async uid => {
+      try {
+        const docSnap = await db.collection('users').doc(uid).get();
+        if (docSnap.exists) {
+          const d = docSnap.data();
+          if (d.name)  usersMap[uid].name  = d.name;
+          if (d.email) usersMap[uid].email = d.email;
+          if (d.provider) usersMap[uid].provider = d.provider;
+        }
+      } catch(e) { /* skip if no permission */ }
+    }));
+
     adminUsersData = Object.values(usersMap);
-    const totalTxns = txnSnap.size;
+    const totalTxns   = txnSnap.size;
     const totalIncome  = adminUsersData.reduce((s,u) => s + u.income, 0);
     const totalExpense = adminUsersData.reduce((s,u) => s + u.expense, 0);
 
@@ -1517,8 +1795,8 @@ async function loadAdminData() {
       const bal = u.income - u.expense;
       const balClass = bal >= 0 ? 'positive' : 'negative';
       const balSign  = bal >= 0 ? '+' : '';
-      const label = u.email || u.name || u.uid.slice(0,10) + '...';
-      const initials = (u.email || u.uid).slice(0,2).toUpperCase();
+      const label = u.name || u.email || ('مستخدم: ' + u.uid.slice(0,8) + '...');
+      const initials = (u.name || u.email || u.uid).slice(0,2).toUpperCase();
       return `
         <div class="admin-user-row" onclick="openAdminUserModal(${i})">
           <div class="admin-avatar">${initials}</div>
@@ -1546,7 +1824,7 @@ async function loadAdminData() {
 function openAdminUserModal(idx) {
   const u = adminUsersData[idx];
   if (!u) return;
-  const label = u.email || u.name || u.uid;
+  const label = u.name || u.email || u.uid;
   document.getElementById('admin-modal-title').textContent = label;
 
   const sorted = [...u.txns].sort((a,b) => new Date(b.date||b.createdAt?.toDate?.()?.toISOString()||0) - new Date(a.date||a.createdAt?.toDate?.()?.toISOString()||0));
@@ -1904,6 +2182,11 @@ function showApp(user) {
 
   applySettings();
   checkAdminAccess();
+
+  // Biometric: show lock or offer setup
+  const locked = showBioLock();
+  if (!locked) offerBiometricSetup();
+
   if (!isDemoMode && db) {
     loadTransactionsFromFirebase();
   } else {
@@ -2295,7 +2578,11 @@ function showPage(pageId) {
   if (navId) document.getElementById(navId).classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (pageId === 'page-statement') renderStatement();
-  if (pageId === 'page-settings') applySettings();
+  if (pageId === 'page-settings') {
+    applySettings();
+    const bioBtn = document.getElementById('bio-toggle-btn');
+    if (bioBtn) bioBtn.textContent = isBioEnabled() ? '🔓 إيقاف الدخول البيومتري' : '🔐 تفعيل الدخول بالبصمة / الوجه';
+  }
   if (pageId === 'page-admin') loadAdminData();
 }
 
