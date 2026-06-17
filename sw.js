@@ -1,5 +1,5 @@
 // Service Worker — البيت السعيد للمصاريف v2
-const CACHE_NAME = 'albait-alsaeid-v2.0.9';
+const CACHE_NAME = 'albait-alsaeid-v2.1.0';
 const STATIC_ASSETS = [
   './',
   './index.html',
