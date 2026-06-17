@@ -2905,6 +2905,173 @@ function handleHashRoute() {
     </div>
   </div>
 </div>
+<script>
+// ============================================================
+// STATEMENT EXPORT FUNCTIONS — standalone block
+// ============================================================
+function getStatementData() {
+  const monthNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const mLabel = monthNames[currentMonth] + ' ' + currentYear;
+  const monthTxns = transactions.filter(t => {
+    const d = new Date(t.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+  let result = [...monthTxns];
+  if (activeFilter !== 'all') {
+    result = activeFilter === 'income' ? result.filter(t => t.type==='income') : result.filter(t => t.category===activeFilter);
+  }
+  result.sort((a,b) => CFG.sortOrder==='asc' ? new Date(a.date)-new Date(b.date) : new Date(b.date)-new Date(a.date));
+  const inc = monthTxns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const exp = monthTxns.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  return { monthLabel: mLabel, filtered: result, income: inc, expense: exp, net: inc - exp };
+}
 
+function exportStatementPDF() {
+  const data = getStatementData();
+  if (!data.filtered.length) { showToast('لا توجد معاملات للتصدير', true); return; }
+  const portal = document.getElementById('print-statement-portal');
+  const cur = CFG.currency;
+  const fmt = n => n.toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const grps = {};
+  data.filtered.forEach(t => { if(!grps[t.date]) grps[t.date]=[]; grps[t.date].push(t); });
+  const dates = Object.keys(grps).sort((a,b)=>new Date(b)-new Date(a));
+  const rows = dates.map(date => {
+    const lbl = new Date(date).toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
+    const items = grps[date].map(t => {
+      const isI = t.type==='income';
+      const emoji = isI?(CAT_EMOJIS[t.source]||'💰'):(CAT_EMOJIS[t.category]||'📦');
+      const desc = isI?(t.note||t.source||'وارد'):(t.desc||t.category||'مصروف');
+      const bg = isI?'#e0f5f2':'#fff3e0';
+      return `<div class="print-txn-row">
+        <div class="print-txn-icon" style="background:${bg}">${emoji}</div>
+        <div style="flex:1;min-width:0"><div class="print-txn-desc">${desc}</div>
+        <div class="print-txn-sub">${(t.category||t.source||'')} · ${new Date(t.date).toLocaleDateString('ar-SA',{day:'numeric',month:'short'})}</div></div>
+        <div class="print-txn-amount ${isI?'inc':'exp'}">${isI?'+':'-'}${fmt(t.amount)} ${cur}</div>
+      </div>`;
+    }).join('');
+    return `<div class="print-section-title">📅 ${lbl}</div>${items}`;
+  }).join('');
+  const netC = data.net>=0?'#a8ffec':'#ffd0a0';
+  portal.innerHTML = `<div class="print-header">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem">🏠</div>
+      <div><div class="print-title">كشف حساب — البيت السعيد</div><div class="print-subtitle">📅 ${data.monthLabel}</div></div>
+    </div>
+    <div class="print-kpis">
+      <div class="print-kpi"><div class="print-kpi-lbl">💰 الوارد</div><div class="print-kpi-val" style="color:#a8ffec">${fmt(data.income)} ${cur}</div></div>
+      <div class="print-kpi"><div class="print-kpi-lbl">💸 الصادر</div><div class="print-kpi-val" style="color:#ffd0a0">${fmt(data.expense)} ${cur}</div></div>
+      <div class="print-kpi"><div class="print-kpi-lbl">📊 الصافي</div><div class="print-kpi-val" style="color:${netC}">${data.net>=0?'+':''}${fmt(data.net)} ${cur}</div></div>
+    </div></div>
+    ${rows}
+    <div class="print-footer">🏠 البيت السعيد · تطوير بالحب ❤️ Shady Nassef<br><small>طُبع: ${new Date().toLocaleDateString('ar-SA')}</small></div>`;
+  portal.style.display = 'block';
+  document.title = 'كشف حساب - ' + data.monthLabel;
+  setTimeout(()=>{ window.print(); setTimeout(()=>{ portal.style.display='none'; document.title='البيت السعيد'; },1000); },200);
+  showToast('جاري فتح نافذة الطباعة...');
+}
+
+function exportStatementCSV() {
+  const data = getStatementData();
+  if (!data.filtered.length) { showToast('لا توجد معاملات للتصدير', true); return; }
+  const hdr = ['التاريخ','النوع','الوصف','التصنيف/المصدر','المبلغ','العملة'];
+  const rows = data.filtered.map(t => {
+    const type = t.type==='income'?'وارد':'مصروف';
+    const desc = t.type==='income'?(t.note||''):(t.desc||'');
+    const cat  = t.type==='income'?(t.source||''):(t.category||'');
+    return [t.date, type, desc, cat, `${t.type==='expense'?'-':''}${t.amount}`, CFG.currency].map(v=>`"${v}"`).join(',');
+  });
+  const summary = [`"","","","الوارد","${data.income}","${CFG.currency}"`,`"","","","الصادر","-${data.expense}","${CFG.currency}"`,`"","","","الصافي","${data.net}","${CFG.currency}"`];
+  const csv = '\uFEFF' + [hdr.join(','),...rows,'',...summary].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download = `كشف-حساب-${data.monthLabel}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast('✅ تم تصدير الملف بنجاح!');
+}
+
+function exportStatementImage() {
+  const data = getStatementData();
+  if (!data.filtered.length) { showToast('لا توجد معاملات للتصدير', true); return; }
+  const W=400, scale=2, PAD=24;
+  const grps={};
+  data.filtered.forEach(t=>{if(!grps[t.date])grps[t.date]=[];grps[t.date].push(t);});
+  const dts=Object.keys(grps).sort((a,b)=>new Date(b)-new Date(a));
+  const H=160+dts.length*32+data.filtered.length*58+80;
+  const cv=document.createElement('canvas'); cv.width=W*scale; cv.height=H*scale;
+  const cx=cv.getContext('2d'); cx.scale(scale,scale);
+  cx.fillStyle='#fef9f0'; cx.fillRect(0,0,W,H);
+  const g=cx.createLinearGradient(0,0,W,140); g.addColorStop(0,'#0a7c6b'); g.addColorStop(.6,'#0d9b87'); g.addColorStop(1,'#f0a04a');
+  cx.fillStyle=g; _rr(cx,0,0,W,148,16); cx.fill();
+  cx.fillStyle='white'; cx.font='bold 17px Arial'; cx.textAlign='right';
+  cx.fillText('كشف حساب — البيت السعيد 🏠',W-PAD,36);
+  cx.font='12px Arial'; cx.fillStyle='rgba(255,255,255,0.85)';
+  cx.fillText('📅 '+data.monthLabel,W-PAD,56);
+  const kpis=[{l:'💰 وارد',v:'+'+data.income.toLocaleString('ar-SA',{minimumFractionDigits:2}),c:'#a8ffec'},{l:'💸 صادر',v:'-'+data.expense.toLocaleString('ar-SA',{minimumFractionDigits:2}),c:'#ffd0a0'},{l:'📊 صافي',v:(data.net>=0?'+':'')+data.net.toLocaleString('ar-SA',{minimumFractionDigits:2}),c:data.net>=0?'#a8ffec':'#ffd0a0'}];
+  const cw=(W-PAD*2-16)/3;
+  kpis.forEach((k,i)=>{ const x=PAD+i*(cw+8); cx.fillStyle='rgba(255,255,255,0.15)'; _rr(cx,x,76,cw,52,8); cx.fill(); cx.fillStyle='rgba(255,255,255,0.75)'; cx.font='10px Arial'; cx.textAlign='center'; cx.fillText(k.l,x+cw/2,93); cx.fillStyle=k.c; cx.font='bold 11px Arial'; cx.fillText(k.v+' '+CFG.currency,x+cw/2,114); });
+  let y=160;
+  dts.forEach(date=>{
+    const dl=new Date(date).toLocaleDateString('ar-SA',{weekday:'short',day:'numeric',month:'short'});
+    cx.fillStyle='#fdf3e0'; _rr(cx,PAD-4,y,W-(PAD-4)*2,24,6); cx.fill();
+    cx.fillStyle='#7a6a52'; cx.font='bold 10px Arial'; cx.textAlign='right';
+    cx.fillText('📅 '+dl,W-PAD,y+15); y+=32;
+    grps[date].forEach(t=>{
+      const isI=t.type==='income';
+      const emoji=isI?(CAT_EMOJIS[t.source]||'💰'):(CAT_EMOJIS[t.category]||'📦');
+      const desc=isI?(t.note||t.source||'وارد'):(t.desc||t.category||'مصروف');
+      const amt=(isI?'+':'-')+t.amount.toLocaleString('ar-SA',{minimumFractionDigits:2})+' '+CFG.currency;
+      cx.fillStyle='#fff'; _rr(cx,PAD-4,y,W-(PAD-4)*2,50,8); cx.fill();
+      cx.strokeStyle='#e8dcc8'; cx.lineWidth=.5; _rr(cx,PAD-4,y,W-(PAD-4)*2,50,8); cx.stroke();
+      cx.fillStyle=isI?'#e0f5f2':'#fff3e0'; _rr(cx,W-PAD-36,y+7,36,36,8); cx.fill();
+      cx.font='18px Arial'; cx.textAlign='center'; cx.fillText(emoji,W-PAD-18,y+30);
+      cx.fillStyle='#2c1f0e'; cx.font='bold 12px Arial'; cx.textAlign='right';
+      cx.fillText(desc.length>22?desc.slice(0,22)+'...':desc,W-PAD-46,y+22);
+      cx.fillStyle='#7a6a52'; cx.font='10px Arial';
+      cx.fillText(t.category||t.source||'',W-PAD-46,y+37);
+      cx.fillStyle=isI?'#0a7c6b':'#e67e22'; cx.font='bold 13px Arial'; cx.textAlign='left';
+      cx.fillText(amt,PAD,y+30); y+=58;
+    });
+  });
+  y+=10; cx.fillStyle='#e8dcc8'; cx.fillRect(PAD,y,W-PAD*2,1); y+=14;
+  cx.fillStyle='#b8a88a'; cx.font='10px Arial'; cx.textAlign='center';
+  cx.fillText('🏠 البيت السعيد · Shady Nassef ❤️',W/2,y);
+  cv.toBlob(blob=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='كشف-حساب-'+data.monthLabel+'.png'; a.click(); showToast('✅ تم حفظ الصورة!'); },'image/png');
+}
+
+function _rr(ctx,x,y,w,h,r) {
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+function shareOnWhatsApp() {
+  const data = getStatementData();
+  if (!data.filtered.length) { showToast('لا توجد معاملات لمشاركتها', true); return; }
+  const cur = CFG.currency;
+  const fmt = n => n.toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const catSum={};
+  data.filtered.filter(t=>t.type==='expense').forEach(t=>{ catSum[t.category]=(catSum[t.category]||0)+t.amount; });
+  const topCats=Object.entries(catSum).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([c,a])=>`${CAT_EMOJIS[c]||'📦'} ${c}: ${fmt(a)} ${cur}`).join('\n');
+  const savPct=data.income>0?Math.round((data.net/data.income)*100):0;
+  const savEmoji=savPct>=20?'🌟':savPct>=0?'👍':'⚠️';
+  const msg=[
+    `🏠 *كشف حساب — البيت السعيد*`,
+    `📅 *${data.monthLabel}*`,
+    `${'─'.repeat(26)}`,
+    `💰 الوارد:   *${fmt(data.income)} ${cur}*`,
+    `💸 الصادر:  *${fmt(data.expense)} ${cur}*`,
+    `📊 الصافي:  *${data.net>=0?'+':''}${fmt(data.net)} ${cur}*`,
+    `${savEmoji} نسبة الادخار: *${savPct}%*`,
+    ``,
+    topCats ? `*📋 تفصيل المصاريف:*\n${topCats}` : '',
+    ``,
+    `📝 عدد المعاملات: *${data.filtered.length}*`,
+    `${'─'.repeat(26)}`,
+    `_تقرير من تطبيق البيت السعيد 🏠_`
+  ].filter(Boolean).join('\n');
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
+  showToast('✅ جاري فتح واتساب...');
+}
+</script>
 </body>
 </html>
